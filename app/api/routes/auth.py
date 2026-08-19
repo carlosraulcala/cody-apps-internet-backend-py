@@ -12,7 +12,7 @@ router = APIRouter()
 
 # Schema nativo de FastAPI par JWT (Para la respuesta)
 class Token(UserPublic):
-    access_token: str
+    access_token: str   
     token_type: str = "bearer"
 
 @router.post("/login", response_model=Token)
