@@ -11,8 +11,10 @@ def create_product(*, session: Session, product_in: ProductCreate) -> Product:
     session.refresh(db_item)
     return db_item
 
-def get_products(*, session: Session, skip: int = 0, limit: int = 100) -> list[Product]:
+def get_products(*, session: Session, skip: int = 0, limit: int = 100, category_id: int | None = None) -> list[Product]:
     statement = select(Product).offset(skip).limit(limit)
+    if category_id is not None:
+        statement = statement.where(Product.category_id == category_id)
     return list(session.exec(statement).all())
 
 def get_product_by_id(*, session: Session, product_id: int) -> Product | None:
