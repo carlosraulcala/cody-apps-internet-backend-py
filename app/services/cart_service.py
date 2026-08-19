@@ -4,12 +4,29 @@ from app.models.cart_item import CartItem, CartItemCreate, CartItemUpdate
 # La Capa de Servicios se encarga EXCLUSIVAMENTE de la lógica de negocio.
 # Jamás sabe qué es una "Request" o "HTTPException". Separación absoluta.
 
-def add_item(*, session: Session, item_in: CartItemCreate) -> CartItem:
+def add_item(session: SessionDep, item_in: CartItemCreate):
+    # Buscar si ya existe el producto para este usuario
+    existing = session.exec(
+        select(CartItem).where(
+            CartItem.user_id == item_in.user_id,
+            CartItem.product_id == item_in.product_id
+        )
+    ).first()
+    
+    if existing:
+        existing.quantity += item_in.quantity
+        session.add(existing)
+        session.commit()
+        session.refresh(existing)
+        return existing
+        
+    # Si no existe, crear nuevo
     db_item = CartItem.model_validate(item_in)
     session.add(db_item)
     session.commit()
     session.refresh(db_item)
     return db_item
+
 
 def get_cart_by_user(*, session: Session, user_id: int, skip: int = 0, limit: int = 100) -> list[CartItem]:
     statement = select(CartItem).where(CartItem.user_id == user_id).offset(skip).limit(limit)
