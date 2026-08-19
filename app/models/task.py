@@ -17,9 +17,9 @@ class TaskPublic(TaskBase):
     ai_suggestion: Optional[str] = None
 
 # Schema para Crear
-class TaskCreate(TaskBase):
+class TaskCreate(TaskBase): 
     pass
-
+        
 # Schema para Actualizar (PATCH, campos opcionales)
 class TaskUpdate(SQLModel):
     title: Optional[str] = None
