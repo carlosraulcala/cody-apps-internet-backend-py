@@ -1,5 +1,5 @@
 from typing import Any
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.api.deps import SessionDep, CurrentUser
 from app.models.product import ProductCreate, ProductPublic, ProductUpdate
@@ -8,9 +8,15 @@ from app.services import product_service
 router = APIRouter()
 
 @router.get("/", response_model=list[ProductPublic])
-def read_products(session: SessionDep, current_user: CurrentUser, skip: int = 0, limit: int = 100) -> Any:
-    """Lista todos los productos. Requiere autenticación."""
-    return product_service.get_products(session=session, skip=skip, limit=limit)
+def read_products(
+    session: SessionDep,
+    current_user: CurrentUser,
+    skip: int = 0,
+    limit: int = 100,
+    category_id: int | None = Query(None)
+) -> Any:
+    """Lista todos los productos. Soporta filtrado por categoría. Requiere autenticación."""
+    return product_service.get_products(session=session, skip=skip, limit=limit, category_id=category_id)
 
 @router.post("/", response_model=ProductPublic, status_code=201)
 def create_product(*, session: SessionDep, current_user: CurrentUser, product_in: ProductCreate) -> Any:
