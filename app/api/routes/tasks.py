@@ -6,22 +6,13 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from openai import OpenAI
 
+from app.core.config import settings
 from app.api.deps import SessionDep, CurrentUser
 from app.models.task import TaskCreate, TaskPublic, TaskUpdate
 from app.services import task_service
 
 
 router = APIRouter()
-
-
-# ==============================
-# CONFIGURACIÓN DE ZHIPU AI
-# ==============================
-
-client = OpenAI(
-    api_key=os.getenv("ZHIPU_API_KEY"),
-    base_url="https://open.bigmodel.cn/api/paas/v4/"
-)
 
 
 # ==============================
@@ -68,7 +59,17 @@ def suggest_task(request: PromptRequest):
     }
     """
 
+    if not settings.ZHIPU_API_KEY:
+        raise HTTPException(
+            status_code=500,
+            detail="ZHIPU_API_KEY no está configurada en las variables de entorno (.env)"
+        )
+
     try:
+        client = OpenAI(
+            api_key=settings.ZHIPU_API_KEY,
+            base_url="https://open.bigmodel.cn/api/paas/v4/"
+        )
 
         response = client.chat.completions.create(
             model="glm-4-flash",
