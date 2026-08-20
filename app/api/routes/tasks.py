@@ -14,9 +14,9 @@ from app.services import task_service
 router = APIRouter()
 
 
-class PromptRequest(BaseModel):
-    prompt: str
-
+# ==============================
+# CONFIGURACIÓN DE ZHIPU AI
+# ==============================
 
 client = OpenAI(
     api_key=os.getenv("ZHIPU_API_KEY"),
@@ -24,41 +24,95 @@ client = OpenAI(
 )
 
 
+# ==============================
+# MODELO PARA LA IA
+# ==============================
+
+class PromptRequest(BaseModel):
+    prompt: str
+
+
+# ==============================
+# SUGERENCIA DE TAREA CON IA
+# ==============================
+
 @router.post("/ai-suggest")
 def suggest_task(request: PromptRequest):
     """
-    Recibe un texto en lenguaje natural y la IA extrae
-    el título y la descripción.
+    Recibe una descripción de una tarea en lenguaje natural
+    y devuelve un título y una descripción generados por IA.
     """
 
     system_prompt = """
-    Eres un asistente de productividad. El usuario te dará una frase
-    en lenguaje natural sobre algo que tiene que hacer.
+    Eres un asistente de productividad.
 
-    Tu trabajo es extraer un 'title' corto y conciso,
-    y una 'description' más detallada.
+    El usuario te dará una frase en lenguaje natural
+    describiendo algo que necesita hacer.
 
-    Debes responder EXCLUSIVAMENTE en formato JSON válido,
-    sin Markdown, con esta estructura exacta:
+    Tu trabajo es extraer:
 
-    {"title": "string", "description": "string"}
+    1. title:
+       Un título corto, claro y conciso.
+
+    2. description:
+       Una descripción más detallada de la tarea.
+
+    Debes responder EXCLUSIVAMENTE con JSON válido,
+    sin Markdown, sin ``` y sin texto adicional.
+
+    Utiliza exactamente esta estructura:
+
+    {
+        "title": "string",
+        "description": "string"
+    }
     """
 
-    response = client.chat.completions.create(
-        model="glm-4-flash",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": request.prompt}
-        ],
-        temperature=0.3,
-    )
+    try:
 
-    ai_result = json.loads(
-        response.choices[0].message.content
-    )
+        response = client.chat.completions.create(
+            model="glm-4-flash",
+            messages=[
+                {
+                    "role": "system",
+                    "content": system_prompt
+                },
+                {
+                    "role": "user",
+                    "content": request.prompt
+                }
+            ],
+            temperature=0.3,
+        )
 
-    return ai_result
+        content = response.choices[0].message.content
 
+        if not content:
+            raise HTTPException(
+                status_code=500,
+                detail="La IA no devolvió ningún resultado"
+            )
+
+        ai_result = json.loads(content)
+
+        return ai_result
+
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=500,
+            detail="La IA no devolvió un JSON válido"
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al consultar la IA: {str(e)}"
+        )
+
+
+# ==============================
+# OBTENER TAREAS
+# ==============================
 
 @router.get("/", response_model=list[TaskPublic])
 def leer_tareas(
@@ -67,6 +121,7 @@ def leer_tareas(
     skip: int = 0,
     limit: int = 100
 ) -> Any:
+
     return task_service.get_tasks(
         session=session,
         skip=skip,
@@ -74,17 +129,26 @@ def leer_tareas(
     )
 
 
+# ==============================
+# CREAR TAREA
+# ==============================
+
 @router.post("/", response_model=TaskPublic)
 def crear_tarea(
     session: SessionDep,
     current_user: CurrentUser,
     task_in: TaskCreate
 ) -> Any:
+
     return task_service.create_task(
         session=session,
         task_in=task_in
     )
 
+
+# ==============================
+# CREAR TAREA CON IA
+# ==============================
 
 @router.post("/ai", response_model=TaskPublic)
 def crear_tarea_con_ia(
@@ -92,11 +156,16 @@ def crear_tarea_con_ia(
     current_user: CurrentUser,
     task_in: TaskCreate
 ) -> Any:
+
     return task_service.create_task_ai(
         session=session,
         task_in=task_in
     )
 
+
+# ==============================
+# ACTUALIZAR TAREA
+# ==============================
 
 @router.patch("/{task_id}", response_model=TaskPublic)
 def actualizar_tarea(
@@ -105,6 +174,7 @@ def actualizar_tarea(
     task_id: int,
     task_in: TaskUpdate
 ) -> Any:
+
     task_db = task_service.update_task(
         session=session,
         task_id=task_id,
@@ -119,6 +189,10 @@ def actualizar_tarea(
 
     return task_db
 
+
+# ==============================
+# ELIMINAR TAREA
+# ==============================
 
 @router.delete("/{task_id}")
 def borrar_tarea(
