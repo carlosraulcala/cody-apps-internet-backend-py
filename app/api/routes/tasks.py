@@ -59,7 +59,8 @@ def suggest_task(request: PromptRequest):
     }
     """
 
-    if not settings.ZHIPU_API_KEY:
+    api_key = settings.ZHIPU_API_KEY or os.getenv("ZHIPU_API_KEY")
+    if not api_key:
         raise HTTPException(
             status_code=500,
             detail="ZHIPU_API_KEY no está configurada en las variables de entorno (.env)"
@@ -67,7 +68,7 @@ def suggest_task(request: PromptRequest):
 
     try:
         client = OpenAI(
-            api_key=settings.ZHIPU_API_KEY,
+            api_key=api_key,
             base_url="https://open.bigmodel.cn/api/paas/v4/"
         )
 
