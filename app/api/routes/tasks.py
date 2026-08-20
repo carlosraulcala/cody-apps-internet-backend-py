@@ -4,7 +4,47 @@ from fastapi import APIRouter, HTTPException
 from app.api.deps import SessionDep, CurrentUser
 from app.models.task import Task, TaskCreate, TaskPublic, TaskUpdate
 from app.services import task_service
+from pydantic import BaseModel
+from openai import OpenAI
 
+class PromptRequest(BaseModel):
+    prompt: str
+
+client = OpenAI(
+    api_key=os.getenv("ZHIPU_API_KEY"),
+    base_url="https://open.bigmodel.cn/api/paas/v4/"
+)
+
+@app.post("/api/tasks/ai-suggest")
+def suggest_task(request: PromptRequest):
+    """
+    Recibe un texto en lenguaje natural y la IA extrae el Título y Descripción.
+    """
+    
+    # Instrucciones estrictas para la IA (System Prompt)
+    system_prompt = """
+    Eres un asistente de productividad. El usuario te dará una frase en lenguaje natural sobre algo que tiene que hacer.
+    Tu trabajo es extraer un 'titulo' corto y conciso, y una 'descripcion' más detallada.
+    Debes responder EXCLUSIVAMENTE en formato JSON válido, sin Markdown, con esta estructura exacta:
+    {"title": "string", "description": "string"}
+    """
+    
+    # Llamada al modelo GLM-4-Flash
+    response = client.chat.completions.create(
+        model="glm-4-flash",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": request.prompt}
+        ],
+        temperature=0.3, # Baja temperatura para respuestas lógicas y predecibles
+    )
+    
+    # El modelo devuelve un string JSON, FastAPI lo convertirá a un objeto HTTP nativo
+    import json
+    ai_result = json.loads(response.choices[0].message.content)
+    
+    return ai_result
+    
 router = APIRouter()
 
 # Observa que todas las peticiones exigen `current_user: CurrentUser`. 
